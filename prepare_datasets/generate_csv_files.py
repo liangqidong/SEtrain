@@ -2,17 +2,38 @@ import os
 import pandas as pd
 from pathlib import Path
 
+
+def get_base_path():
+    """
+    获取脚本所在目录的绝对路径，确保在不同运行方式下都能正确定位。
+    无论从哪个目录运行 python generate_csv_files.py，
+    都能正确找到 prepare_datasets/ 目录。
+    """
+    # os.path.abspath 确保即使 __file__ 是相对路径也能得到绝对路径
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return Path(script_dir)
+
+
 def find_wav_files_recursive(directory):
     """
     递归搜索目录及其所有子目录中的WAV文件
+    过滤掉系统生成的隐藏文件（如以 ._ 开头的文件）
     """
+    # 获取基准目录（脚本所在目录的绝对路径）
+    base_dir = get_base_path()
+    
     wav_files = []
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.lower().endswith('.wav'):
-                # 获取相对于项目根目录（prepare_datasets目录）的相对路径
-                rel_path = os.path.relpath(os.path.join(root, file), 
-                                          os.path.dirname(__file__))
+            # 检查是否是WAV文件，同时排除系统生成的隐藏文件
+            if file.lower().endswith('.wav') and not file.startswith('._'):
+                # 获取相对于脚本所在目录（prepare_datasets目录）的相对路径
+                # 使用绝对路径计算，避免空字符串导致路径错乱
+                abs_path = os.path.abspath(os.path.join(root, file))
+                rel_path = os.path.relpath(abs_path, str(base_dir))
+                # 确保路径以 ./ 开头
+                if not rel_path.startswith('./'):
+                    rel_path = './' + rel_path
                 wav_files.append(rel_path)
     return sorted(wav_files)  # 排序以保证一致性
 
@@ -20,7 +41,7 @@ def generate_csv_files():
     """
     扫描 clean/, noise/, 和 rir/ 目录，并生成相应的 CSV 文件
     """
-    base_path = Path(__file__).parent  # 当前目录 (prepare_datasets/)
+    base_path = get_base_path()  # 脚本所在目录的绝对路径 (prepare_datasets/)
     
     # 获取 clean 目录下的所有 wav 文件（递归搜索）
     clean_dir = base_path / "clean"
