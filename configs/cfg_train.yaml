@@ -4,7 +4,7 @@ network_config:
   win_len: 512
 
 DDP:
-  world_size: 2
+  world_size: 1
 
 optimizer:
   lr: 0.001
@@ -34,14 +34,14 @@ loss:
 
 train_dataset: 
   length_in_seconds: 10
-  num_data_tot: 72000  # 200 h
-  num_data_per_epoch: 10000
+  num_data_tot: 5
+  num_data_per_epoch: 5
   random_start_point: False
   train: True
 
 train_dataloader: 
-  batch_size: 8
-  num_workers: 4
+  batch_size: 2
+  num_workers: 2
   drop_last: True
   pin_memory: True
 
@@ -51,16 +51,16 @@ validation_dataset:
   train: False
 
 validation_dataloader:
-  batch_size: 4
-  num_workers: 4
+  batch_size: 2
+  num_workers: 2
   pin_memory: True
 
 samplerate: 16000
 
 trainer:
-  epochs: 200
+  epochs: 3
   save_checkpoint_interval: 1
   clip_grad_norm_value: 3.0
-  exp_path: /data/ssd0/xiaobin.rong/study_se/DNS3/exp_gtcrn
+  exp_path: ./exp_gtcrn
   resume: False
   resume_datetime: 2024-12-31-14h28m
