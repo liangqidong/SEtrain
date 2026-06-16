@@ -39,15 +39,17 @@ need_cmd tar
 # git lfs 可选 (HuggingFace 镜像方式才用到)
 
 # =============================================================================
-# 方式 A (推荐): 通过 DNS Challenge 官方仓库脚本下载 (Azure Blob)
-# 仓库: https://github.com/microsoft/DNS-Challenge (interspeech2021 分支)
-# 仓库里 download-dns-challenge-3.sh 列出了所有 BLOB_NAMES 链接
+# 方式 A (推荐海外服务器): 通过 DNS Challenge 官方仓库脚本下载 (Azure Blob)
+# 仓库: https://github.com/microsoft/DNS-Challenge (master 分支, 非 interspeech2021)
+# download-dns-challenge-3.sh 列出了所有 Azure Blob 链接
+# 数据源: Microsoft Azure Blob Storage (dns4public.blob.core.windows.net)
+# 总量: ~550GB 压缩, ~1TB 解压, 适合海外服务器直连 Azure
 # =============================================================================
 download_dns3_official() {
-    echo "==> [方式A] 从 microsoft/DNS-Challenge (interspeech2021 分支) 拉取下载列表"
+    echo "==> [方式A] 从 microsoft/DNS-Challenge (master 分支) 拉取下载脚本"
     REPO_DIR="${DATA_ROOT}/DNS-Challenge"
     if [ ! -d "${REPO_DIR}" ]; then
-        git clone --depth=1 --branch interspeech2021 \
+        git clone --depth=1 --branch master \
             https://github.com/microsoft/DNS-Challenge.git "${REPO_DIR}"
     fi
 
@@ -117,8 +119,13 @@ download_rir_only() {
 }
 
 # =============================================================================
-# 方式 C: HuggingFace 镜像 (国内推荐, 不需 VPN)
-# 数据集: ChrisIsKing/DNS-challenge / pyf98/DNS3 等社区镜像
+# 方式 C: HuggingFace 镜像 (国内服务器推荐, 不需 VPN)
+# 数据集: 社区维护的 DNS3 子集镜像 (如 ChrisIsKing/DNS-challenge 等)
+# 数据源: HuggingFace Hub / hf-mirror.com (国内加速)
+# 与方式A的区别:
+#   - 方式A: 数据在 Microsoft Azure Blob (微软官方源), 海外直连快, 国内可能超时
+#   - 方式C: 数据在 HuggingFace Hub (社区镜像), 通过 hf-mirror.com 国内加速,
+#            但 repo 可能不完整/非官方, 需自行确认 repo_id 和数据完整性
 # =============================================================================
 download_via_huggingface() {
     echo "==> [方式C] 通过 HuggingFace 镜像下载"
