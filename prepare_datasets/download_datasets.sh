@@ -120,26 +120,67 @@ download_rir_only() {
 
 # =============================================================================
 # 方式 C: HuggingFace 镜像 (国内服务器推荐, 不需 VPN)
-# 数据集: 社区维护的 DNS3 子集镜像 (如 ChrisIsKing/DNS-challenge 等)
+# 数据集: DNS1 (Interspeech 2020) 社区镜像
+#   - ltnghia/DNS-Challenge: clean speech + noise (~10.6GB)
+#   - ChristianYang/DNS-Noise: noise_fullband + RIR (24kHz FLAC)
+# 注意: HuggingFace 上暂无 DNS3 (Interspeech 2021) 完整数据集
+#       以下为 DNS1 数据, 可用于语音增强模型训练
 # 数据源: HuggingFace Hub / hf-mirror.com (国内加速)
 # 与方式A的区别:
-#   - 方式A: 数据在 Microsoft Azure Blob (微软官方源), 海外直连快, 国内可能超时
-#   - 方式C: 数据在 HuggingFace Hub (社区镜像), 通过 hf-mirror.com 国内加速,
-#            但 repo 可能不完整/非官方, 需自行确认 repo_id 和数据完整性
+#   - 方式A: DNS3 数据在 Microsoft Azure Blob (微软官方源), 海外直连快, 国内可能超时
+#   - 方式C: DNS1 数据在 HuggingFace Hub (社区镜像), 通过 hf-mirror.com 国内加速
 # =============================================================================
 download_via_huggingface() {
-    echo "==> [方式C] 通过 HuggingFace 镜像下载"
+    echo "==> [方式C] 通过 HuggingFace 镜像下载 (DNS1 / Interspeech 2020)"
+    echo "    注意: HuggingFace 上暂无 DNS3 完整数据, 以下为 DNS1 数据"
     need_cmd python
-    pip install -q "huggingface_hub[cli]" hf_transfer
+    pip install -q huggingface_hub hf_transfer
     export HF_HUB_ENABLE_HF_TRANSFER=1
-    # 国内镜像加速 (可选)
+    # 国内镜像加速
     export HF_ENDPOINT=https://hf-mirror.com
 
-    # 示例: 下载某个社区维护的 DNS3 子集
-    # huggingface-cli download <repo_id> --repo-type dataset \
-    #     --local-dir "${DATA_ROOT}/DNS3_hf" --local-dir-use-symlinks False
+    # ---- 1) Clean speech + Noise: ltnghia/DNS-Challenge (DNS1, ~10.6GB) ----
+    HF_CLEAN_DIR="${DATA_ROOT}/DNS1_hf/DNS-Challenge"
+    echo "==> 下载 clean speech + noise: ltnghia/DNS-Challenge"
+    huggingface-cli download ltnghia/DNS-Challenge \
+        --repo-type dataset \
+        --local-dir "${HF_CLEAN_DIR}" \
+        --local-dir-use-symlinks False
 
-    echo "请编辑脚本填入实际 HF repo_id 后再运行"
+    # 将下载的 wav 文件链接到 clean/noise 目录
+    # ltnghia/DNS-Challenge 目录结构: datasets/clean/ 和 datasets/noise/
+    echo "==> 链接 DNS1 clean + noise 到目标目录"
+    if [ -d "${HF_CLEAN_DIR}/datasets/clean" ]; then
+        find "${HF_CLEAN_DIR}/datasets/clean" -name "*.wav" -exec ln -sf {} "${CLEAN_DIR}/" \;
+        echo "    clean: $(find "${CLEAN_DIR}" -name '*.wav' | wc -l) files"
+    fi
+    if [ -d "${HF_CLEAN_DIR}/datasets/noise" ]; then
+        find "${HF_CLEAN_DIR}/datasets/noise" -name "*.wav" -exec ln -sf {} "${NOISE_DIR}/" \;
+        echo "    noise: $(find "${NOISE_DIR}" -name '*.wav' | wc -l) files"
+    fi
+
+    # ---- 2) Noise + RIR: ChristianYang/DNS-Noise (24kHz FLAC) ----
+    HF_NOISE_DIR="${DATA_ROOT}/DNS1_hf/DNS-Noise"
+    echo "==> 下载 noise + RIR: ChristianYang/DNS-Noise"
+    huggingface-cli download ChristianYang/DNS-Noise \
+        --repo-type dataset \
+        --local-dir "${HF_NOISE_DIR}" \
+        --local-dir-use-symlinks False
+
+    # 链接 RIR 文件
+    echo "==> 链接 DNS-Noise RIR 到目标目录"
+    if [ -d "${HF_NOISE_DIR}" ]; then
+        find "${HF_NOISE_DIR}" -name "*.wav" -path "*/rir/*" -exec ln -sf {} "${RIR_DIR}/" \;
+        find "${HF_NOISE_DIR}" -name "*.flac" -path "*/rir/*" -exec ln -sf {} "${RIR_DIR}/" \;
+        echo "    rir: $(find "${RIR_DIR}" \( -name '*.wav' -o -name '*.flac' \) | wc -l) files"
+    fi
+
+    echo ""
+    echo "==> HuggingFace 下载完成!"
+    echo "    数据来源: DNS1 (Interspeech 2020), 非 DNS3"
+    echo "    clean: $(find "${CLEAN_DIR}" -name '*.wav' | wc -l) files"
+    echo "    noise: $(find "${NOISE_DIR}" -name '*.wav' | wc -l) files"
+    echo "    rir:   $(find "${RIR_DIR}" \( -name '*.wav' -o -name '*.flac' \) | wc -l) files"
 }
 
 # =============================================================================
@@ -149,7 +190,7 @@ echo ""
 echo "请选择下载模式:"
 echo "  1) 完整 DNS3 (>1TB, 方式A)"
 echo "  2) 仅 RIR (~5GB, 方式B, 用于快速联调)"
-echo "  3) HuggingFace 镜像 (方式C, 需自行填写 repo_id)"
+echo "  3) HuggingFace 镜像 - DNS1 数据 (方式C, 国内加速)"
 read -p "输入选项 [1/2/3] (默认 2): " choice
 choice=${choice:-2}
 
