@@ -4,7 +4,7 @@ network_config:
   win_len: 512
 
 DDP:
-  world_size: 1
+  world_size: 4
 
 optimizer:
   lr: 0.001
@@ -34,14 +34,14 @@ loss:
 
 train_dataset: 
   length_in_seconds: 10
-  num_data_tot: 5
-  num_data_per_epoch: 5
+  num_data_tot: 720000
+  num_data_per_epoch: 10000
   random_start_point: False
   train: True
 
 train_dataloader: 
-  batch_size: 2
-  num_workers: 2
+  batch_size: 16
+  num_workers: 8
   drop_last: True
   pin_memory: True
 
@@ -51,14 +51,14 @@ validation_dataset:
   train: False
 
 validation_dataloader:
-  batch_size: 2
-  num_workers: 2
+  batch_size: 8
+  num_workers: 8
   pin_memory: True
 
 samplerate: 16000
 
 trainer:
-  epochs: 3
+  epochs: 200
   save_checkpoint_interval: 1
   clip_grad_norm_value: 3.0
   exp_path: ./exp_gtcrn

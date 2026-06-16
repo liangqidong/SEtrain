@@ -1,10 +1,10 @@
 test_dataset: 
-  noisy_dir: ./prepare_datasets/DNS3/train_noisy/
-  clean_dir: ./prepare_datasets/DNS3/train_clean/
+  noisy_dir: ./prepare_datasets/DNS3/test_noisy/
+  clean_dir: ./prepare_datasets/DNS3/test_clean/
 
 network:
   exp_path: ./exp_gtcrn
   config: ${network.exp_path}/config.yaml
-  ckpt_name: model_001
+  ckpt_name: best_model
   checkpoint: ${network.exp_path}/checkpoints/${network.ckpt_name}.tar
   enh_folder: ${network.exp_path}/${network.ckpt_name}/enhanced
