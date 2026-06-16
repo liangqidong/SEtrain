@@ -1,10 +1,19 @@
 import os
+import glob
 import soundfile as sf
-import librosa
 import torch
 from torch.utils import data
 import numpy as np
 import random
+
+
+def find_wav_files(directory):
+    """查找目录下所有 wav 文件（替代 librosa.util.find_files，避免 pkg_resources 依赖）"""
+    if not os.path.isdir(directory):
+        return []
+    pattern = os.path.join(directory, '**', '*.wav')
+    return sorted(glob.glob(pattern, recursive=True))
+
 
 # 默认数据路径：指向 gen_DNS3_datasets.py 生成的数据
 # 可通过环境变量 DNS3_DATA_ROOT 覆盖
@@ -27,8 +36,8 @@ class DNS3Dataset(torch.utils.data.Dataset):
             print("You are using this DNS3 training data:", NOISY_DATABASE_TRAIN)
         else:
             print("You are using this DNS3 validation data:", NOISY_DATABASE_VALID)
-        self.noisy_database_train = sorted(librosa.util.find_files(NOISY_DATABASE_TRAIN, ext='wav'))[:num_data_tot]
-        self.noisy_database_valid = sorted(librosa.util.find_files(NOISY_DATABASE_VALID, ext='wav'))
+        self.noisy_database_train = find_wav_files(NOISY_DATABASE_TRAIN)[:num_data_tot]
+        self.noisy_database_valid = find_wav_files(NOISY_DATABASE_VALID)
         # 如果验证集为空，回退使用训练集作为验证集
         if not self.noisy_database_valid:
             print("[WARNING] Validation set is empty, falling back to training set for validation")
