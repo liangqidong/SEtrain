@@ -5,7 +5,7 @@
 # 使用方法: bash prepare_and_train.sh /path/to/DNS-Challenge
 # =============================================================================
 
-set -e
+# set -e 已移除: 解压损坏文件不应导致脚本退出
 set -u
 
 # ---- 配置区 ----
@@ -32,24 +32,99 @@ if [ ! -d "${DNS_REPO}" ]; then
 fi
 
 # ---- Step 1: 解压 ----
+# 记录损坏/跳过的文件
+CORRUPT_FILES=""
+AZURE_URL="https://dns3public.blob.core.windows.net/dns3archive"
+MAX_RETRY=3
+
+extract_tarbz2() {
+    local f="$1"
+    local dest="$2"
+    local basename_f
+    basename_f="$(basename "$f")"
+    echo "    解压: ${basename_f}"
+
+    # 先验证文件完整性
+    echo "      验证完整性..."
+    if ! bzip2 -t "$f" 2>/dev/null; then
+        echo "      [WARN] 文件损坏: ${basename_f}"
+        echo "      尝试重新下载 (最多 ${MAX_RETRY} 次)..."
+
+        local retry=0
+        local success=0
+        while [ $retry -lt $MAX_RETRY ]; do
+            retry=$((retry + 1))
+            echo "      第 ${retry}/${MAX_RETRY} 次重试..."
+
+            # 删除损坏文件
+            rm -f "$f"
+
+            # 确定Azure Blob路径 (文件在 datasets/ 或 datasets_fullband/ 下)
+            local blob_path
+            if [[ "$f" == *"/datasets/"* ]]; then
+                blob_path="datasets/${basename_f}"
+            else
+                blob_path="datasets_fullband/${basename_f}"
+            fi
+
+            # 重新下载 (wget -c 支持断点续传)
+            if command -v wget >/dev/null 2>&1; then
+                wget -c "${AZURE_URL}/${blob_path}" -O "$f"
+            else
+                curl -C - "${AZURE_URL}/${blob_path}" -o "$f"
+            fi
+
+            # 再次验证
+            if bzip2 -t "$f" 2>/dev/null; then
+                echo "      重新下载成功: ${basename_f}"
+                success=1
+                break
+            else
+                echo "      第 ${retry} 次重试仍然损坏"
+            fi
+        done
+
+        if [ $success -eq 0 ]; then
+            echo "      [WARN] 重试 ${MAX_RETRY} 次后仍失败, 跳过: ${basename_f}"
+            CORRUPT_FILES="${CORRUPT_FILES}\n    ${basename_f}"
+            return 1
+        fi
+    fi
+
+    # 解压
+    if tar -xjf "$f" -C "$dest/"; then
+        echo "      完成: ${basename_f}"
+    else
+        echo "      [WARN] 解压失败, 跳过: ${basename_f}"
+        CORRUPT_FILES="${CORRUPT_FILES}\n    ${basename_f}"
+        return 1
+    fi
+}
+
 echo ""
 echo "==> [Step 1/5] 解压 wideband 数据..."
 for f in "${DNS_REPO}"/datasets/*.tar.bz2; do
     if [ -f "$f" ]; then
-        echo "    解压: $(basename $f)"
-        tar -xjf "$f" -C "${DNS_REPO}/datasets/"
+        extract_tarbz2 "$f" "${DNS_REPO}/datasets" || true
     fi
 done
 
 echo "==> [Step 1/5] 解压 fullband 数据..."
 for f in "${DNS_REPO}"/datasets_fullband/*.tar.bz2; do
     if [ -f "$f" ]; then
-        echo "    解压: $(basename $f)"
-        tar -xjf "$f" -C "${DNS_REPO}/datasets_fullband/"
+        extract_tarbz2 "$f" "${DNS_REPO}/datasets_fullband" || true
     fi
 done
 
 echo "    解压完成!"
+if [ -n "${CORRUPT_FILES}" ]; then
+    echo ""
+    echo "    [WARN] 以下文件损坏且重试失败 (需手动重新下载):"
+    echo -e "${CORRUPT_FILES}"
+    echo ""
+    echo "    手动重新下载命令示例:"
+    echo "    curl -C - \"${AZURE_URL}/datasets/datasets.clean.read_speech.tar.bz2\" -o /path/to/DNS-Challenge/datasets/datasets.clean.read_speech.tar.bz2"
+fi
 
 # ---- Step 2: 创建目标目录 ----
 echo ""
